@@ -15,7 +15,7 @@ real_label = 1.0
 fake_label = 0.0
 
 g = Generator(nz, ngf)
-d = Discriminator(ndf)
+d = Discriminator(3, ndf)
 
 cp = torch.load('./checkpoints/iter20800.tar')
 
@@ -90,47 +90,65 @@ def train(g, d, g_optimizer, d_optimizer, criterion, train_loader, val_loader, e
     torch.save(g.state_dict(), './weights/g.pth')
     torch.save(d.state_dict(), './weights/d.pth')
 
-
-hed = HedNet().to(device)
-d_sketch = Discriminator(ndf).to(device)
-def train_with_sketch(g, d_sketch, sketches, g_opt, d_opt, num, epoch, silence, device='cuda', printevery=10):
+def train_with_sketch(g, d_sketch, sketches, g_opt, d_opt, num, iteration, silence, device='cuda', printevery=10):
+    hed = HedNet().to(device)
     g.to(device)
-    for e in range(epoch):
-        noise = torch.randn(num, nz, ngf, device=device)
+    train_next = True
+    for i in range(iteration):
+        noise = torch.randn(num, nz, 1,1, device=device)
         fake = g(noise)
-        fake_sketches = hed(fake)
+        with torch.no_grad(): fake_sketches = hed((fake+1)/2)
 
         # all real
-        label = torch.full(size=(N,), fill_value=real_label, device=device)
-        if e % silence != 0:
-            D_x = d_sketch(sketches)
-            loss_d_real = loss_fn(D_x, label)
+        label = torch.full(size=(sketches.shape[0],), fill_value=real_label, device=device)
+        D_x = d_sketch(sketches)
+        loss_d_real = loss_fn(D_x, label)
 
-            # all fake
-            label.fill_(fake_label)
-            D_G_z1 = d_sketch(fake_sketches)
-            loss_d_fake = loss_fn(D_G_z1, label)
+        # all fake
+        label = torch.full(size=(num,), fill_value=fake_label, device=device)
+        D_G_z1 = d_sketch(fake_sketches)
+        loss_d_fake = loss_fn(D_G_z1, label)
 
-            loss_d = loss_d_fake + loss_d_real
+        loss_d = loss_d_fake + loss_d_real
+        if train_next:
             d_opt.zero_grad()
-            loss_d.backward()
+            loss_d.backward(retain_graph=True)
             d_opt.step()
+        loss_d = loss_d.item()
+        D_x = D_x.mean().item()
+        D_G_z1 = D_G_z1.mean().item()
 
         # generator
-        label.fill_(real_label)
+        label = torch.full(size=(num,), fill_value=real_label, device=device)
         D_G_z2 = d_sketch(fake_sketches)
         loss_g = loss_fn(D_G_z2, label)
+       # print(D_G_z2, label, loss_g)
         g_opt.zero_grad()
-        loss_g.backward()
+        loss_g.backward(retain_graph=True)
         g_opt.step()
 
         loss_g = loss_g.item()
-        loss_d = loss_d.item()
-        D_x = D_x.item()
-        D_G_z1 = D_G_z1.item()
-        D_G_z2 = D_G_z2.item()
+
+        D_G_z2 = D_G_z2.mean().item()
+        if i % 500 == 0:
+            ToPILImage()((fake[0]+1)/2).save(f'./exp/sketch_guide/iter{i}.png')
+            ToPILImage()(fake_sketches[0]).save(f'./exp/sketch_guide/iter{i}_fakesketch.png')
 
         if i % printevery == 0:
-            print(f'Epoch {e+1}: LOSS_G={loss_g:.4f}, LOSS_D={loss_d:.4f}, D(x)={D_x:.4f}, D(G(z))={D_G_z1:.4f} / {D_G_z2:.4f}')
+            # if train_next:
+            print(f'Iter {i}: LOSS_G={loss_g:.4f}, LOSS_D={loss_d:.4f}, D(x)={D_x:.4f}, D(G(z))={D_G_z1:.4f} / {D_G_z2:.4f}')
+            # else:
+            #     print(f'Iter {i}: LOSS_G={loss_g:.4f}, D(G(z))={D_G_z2:.4f}')
+        if D_G_z2<silence: train_next=False
+    torch.save(g.state_dict(), './weights/g_sketch.pth')
+    torch.save(d.state_dict(), './weights/d_sketch.pth')
 
-    torch.save(g.state_dict(), './weights/g_modified.pth')
+
+import hyperparameters
+from PIL import Image
+from torchvision.transforms import ToTensor
+d_sketch = Discriminator(1, ndf).to(device)
+g_opt = torch.optim.Adam(g.parameters(), hyperparameters.sg_lr, (hyperparameters.sg_beta1, hyperparameters.sg_beta2))
+d_opt = torch.optim.Adam(d_sketch.parameters(), hyperparameters.sd_lr, (hyperparameters.sd_beta1, hyperparameters.sd_beta2))
+sketch = ToTensor()(Image.open('./exp/sketch_cropped.png')).unsqueeze(0).to(device)
+train_with_sketch(g, d_sketch, sketch, g_opt, d_opt, 5, 5000, 0.1)
