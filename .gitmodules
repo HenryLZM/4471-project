@@ -1,3 +1,6 @@
 [submodule "PhotoSketch"]
 	path = PhotoSketch
 	url = https://github.com/mtli/PhotoSketch.git
+[submodule "pytorch-hed"]
+	path = pytorch-hed
+	url = https://github.com/sniklaus/pytorch-hed.git
