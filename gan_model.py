@@ -1,14 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-from torch.utils.data import sampler
-
-import torchvision.datasets as dset
-import torchvision.transforms as T
-
-import numpy as np
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -79,7 +70,6 @@ class Discriminator(nn.Module):
             nn.Conv2d(ndf * 16, 1, 4, 1, 0),
             nn.Sigmoid()
         )
-
 
     def forward(self, x):
         return self.main(x).reshape(len(x),)

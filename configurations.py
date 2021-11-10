@@ -24,4 +24,4 @@ generated_dir = './test/'
 #     --no_dropout ^'
 
 
-hed_weight = './weights/hed-bsds500'
+hed_weight_dir = './weights/hed-bsds500'

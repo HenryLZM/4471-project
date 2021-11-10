@@ -1,5 +1,5 @@
 # DATA
-batch_size = 32
+batch_size = 64
 
 # MODEL
 nz = 100
@@ -16,5 +16,5 @@ d_beta1, d_beta2 = 0.5, 0.999
 #   Sketch Disciminator
 sg_lr = 1e-4
 sg_beta1, sg_beta2 = 0.5, 0.999
-sd_lr = 1e-6
+sd_lr = 5e-6
 sd_beta1, sd_beta2 = 0.5, 0.999
