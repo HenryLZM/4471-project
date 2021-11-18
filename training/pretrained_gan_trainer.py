@@ -1,15 +1,17 @@
-from gan_model import GANModel
+from training.pretrained_gan_model import PretrainedGANModel
 
 class PretrainedGANTrainer():
     def __init__(self, opt):
         self.opt = opt
         self.device = 'cuda' if self.opt['use_gpu'] else 'cpu'
-        self.gan_model = GANModel(opt).to(self.device)
+        self.gan_model = PretrainedGANModel(opt).to(self.device)
         self.optimizer_G, self.optimizer_D = \
             self.gan_model.create_optimizers(opt)
         self.gan_model.create_loss_fns(opt)
         self.gan_model.set_requires_grad(False, False)
-        
+        self.g_loss = None,
+        self.d_loss = None,
+
     def run_generator_one_step(self, data):
         g_loss, generated = self.gan_model(data, mode='generator')
         self.optimizer_G.zero_grad()
@@ -30,3 +32,9 @@ class PretrainedGANTrainer():
         self.run_discriminator_one_step(data)
         self.gan_model.set_requires_grad(True, False)
         self.run_generator_one_step(data)
+
+    def get_latest_losses(self):
+        return {
+            "g_loss": self.g_loss,
+            "d_loss": self.d_loss
+        }

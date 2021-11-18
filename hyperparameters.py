@@ -21,16 +21,24 @@ sd_beta1, sd_beta2 = 0.5, 0.999
 import torch
 
 pretrained_opt = {
+    'data_dir': 'E:/HKUST/2021F/COMP4471/project/data/img/G2.h5',
+    'data_len': 10,
+
+    'print_freq': 10,
+
+    'resume_iter': None,
+
     'use_gpu': torch.cuda.is_available(),
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+    'gan_mode': 'softplus',
+    'max_epoch': 1,
 
-    'gan_mode': None,
-
-    'size': 256,
+    'image_size': 256,                                          #image size
     'z_dim': 512,
     'n_mlp': 8,
     'lr_mlp': 0.01,
     'channel_multiplier': 2,
-    'batch_size': 32,
+    'batch_size': 2,
     'mixing': 0,
 
     'optim_param_g': 'w_shift',
@@ -41,4 +49,5 @@ pretrained_opt = {
     'd_reg_every': 1.0,
 
     'g_pretrained': '',
+    'd_pretrained': '',
 }

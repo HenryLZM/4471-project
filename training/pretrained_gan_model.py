@@ -1,9 +1,10 @@
 import torch
-from networks import GANLoss
-from networks import stylegan2
-import networks
+from training.networks import GANLoss
+from training.networks import stylegan2
+
 class PretrainedGANModel(torch.nn.Module):
     def __init__(self, opt):
+        super().__init__()
         self.opt = opt
         self.use_gpu = opt['use_gpu']
         self.FloatTensor = torch.cuda.FloatTensor if self.use_gpu else torch.FloatTensor
@@ -27,10 +28,10 @@ class PretrainedGANModel(torch.nn.Module):
     def initialize_networks(self, opt):
         w_shift = opt['optim_param_g'] == 'w_shift'
         netG = stylegan2.Generator(
-            opt['size'], opt['z_dim'], opt['n_mlp'],lr_mlp=opt['lr_mlp'],channel_multiplier=opt['channel_multiplier'],w_shift=w_shift
+            opt['image_size'], opt['z_dim'], opt['n_mlp'],lr_mlp=opt['lr_mlp'],channel_multiplier=opt['channel_multiplier'],w_shift=w_shift
         )
         netD = stylegan2.Discriminator(
-            opt['size'], opt['channel_multiplier']
+            opt['image_size'], opt['channel_multiplier']
         )
 
         if opt['g_pretrained'] != '':
@@ -102,6 +103,15 @@ class PretrainedGANModel(torch.nn.Module):
         optimizer_G = torch.optim.Adam(G_params, lr=G_lr, betas=(G_beta1, G_beta2))
         optimizer_D = torch.optim.Adam(D_params, lr=D_lr, betas=(D_beta1, D_beta2))
         return optimizer_G, optimizer_D
+        
+    def set_requires_grad(self, g_requires_grad=None, d_requires_grad=None):
+        if g_requires_grad is not None:
+            for p in self.G_params:
+                p.requires_grad = g_requires_grad
+
+        if d_requires_grad is not None:
+            for p in self.D_params:
+                p.requires_grad = d_requires_grad
         
 def mixing_noise(batch, latent_dim, prob, device):
     """Generate 1 or 2 set of noises for style mixing."""
