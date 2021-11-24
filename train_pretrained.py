@@ -48,7 +48,8 @@ def train_loop():
                     fake = trainer.gan_model.generate_fake(16)
                 grid = vutils.make_grid((fake+1)/2, nrow=4, padding=2)
                 ToPILImage()(grid).save(opt['visual_dir'] + '/' + opt['name'] + f'/{total_iters}_fake.png')
-        
+    trainer.save(total_iters)
+
 if __name__ == "__main__":
     print("Start Training\n========================")
     train_loop()

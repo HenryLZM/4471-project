@@ -1,8 +1,11 @@
 from torch.utils.data import Dataset, DataLoader
 import h5py
 import torch
-from torchvision.transforms import Normalize, ToPILImage, functional
+from torchvision.transforms import Normalize, ToPILImage, functional, ToTensor
 import numpy as np
+import os
+from PIL import Image
+
 
 class FashionDataset(Dataset):
     def __init__(self, dir, base, length, device):
@@ -27,7 +30,33 @@ class FashionDataset(Dataset):
         pic = Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))(pic)
         return pic
 
+class SketchDataset(Dataset):
+    def __init__(self, data_dir, device):
+        self.data_dir = data_dir
+        self.files = os.listdir(data_dir)
+        self.device = device
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        path = self.data_dir + '/' + self.files[idx]
+        pic = Image.open(path)
+        pic = ToTensor()(pic).to(self.device)
+        pic = pic*2 - 1 
+        return pic
+
 def create_dataloader(data_dir, base, data_len, batch_size, num_workers, device):
     dataset = FashionDataset(data_dir, base, data_len, device)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     return loader
+
+def create_dataset(data_dir, base, data_len, device):
+    return FashionDataset(data_dir, base, data_len, device)
+
+def sketch_dataset(data_dir, device):
+    return SketchDataset(data_dir, device)
+
+def sketch_dataloader(data_dir, device):
+    dataset = SketchDataset(data_dir, batch_size, device)
+    return DataLoader(dataset, batch_size=batch_size)

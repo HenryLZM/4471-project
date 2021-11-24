@@ -7,7 +7,6 @@ class GANModel(torch.nn.Module):
         super().__init__()
         self.opt = opt
         self.device = opt['device']
-        self.purpose = opt['purpose']
         self.BCELoss = torch.nn.BCELoss()
         self.netG, self.netD = self.initialize_networks(opt)
         # if self.purpose == 'pretrain':
@@ -42,12 +41,6 @@ class GANModel(torch.nn.Module):
             opt['nc'],
             opt['ndf'],
         )
-
-        if opt['g_pretrained'] is not None:
-            netG.load_state_dict(torch.load(opt['g_pretrained']))
-
-        if opt['d_pretrained'] is not None:
-            netD.load_state_dict(torch.load(opt['d_pretrained']))
         
         return netG, netD
 

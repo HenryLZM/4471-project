@@ -1,8 +1,7 @@
 import torch
-from configurations import hed_weight_dir
 
 class HedNet(torch.nn.Module):
-	def __init__(self):
+	def __init__(self, hed_weight_dir):
 		super().__init__()
 
 		self.netVggOne = torch.nn.Sequential(
@@ -65,28 +64,29 @@ class HedNet(torch.nn.Module):
 	# end
 
 	def forward(self, tenInput):
-		tenBlue = (tenInput[:, 0:1, :, :] * 255.0) - 104.00698793
-		tenGreen = (tenInput[:, 1:2, :, :] * 255.0) - 116.66876762
-		tenRed = (tenInput[:, 2:3, :, :] * 255.0) - 122.67891434
+		with torch.no_grad():
+			tenBlue = (tenInput[:, 0:1, :, :] * 255.0) - 104.00698793
+			tenGreen = (tenInput[:, 1:2, :, :] * 255.0) - 116.66876762
+			tenRed = (tenInput[:, 2:3, :, :] * 255.0) - 122.67891434
 
-		tenInput = torch.cat([ tenBlue, tenGreen, tenRed ], 1)
+			tenInput = torch.cat([ tenBlue, tenGreen, tenRed ], 1)
 
-		tenVggOne = self.netVggOne(tenInput)
-		tenVggTwo = self.netVggTwo(tenVggOne)
-		tenVggThr = self.netVggThr(tenVggTwo)
-		tenVggFou = self.netVggFou(tenVggThr)
-		tenVggFiv = self.netVggFiv(tenVggFou)
+			tenVggOne = self.netVggOne(tenInput)
+			tenVggTwo = self.netVggTwo(tenVggOne)
+			tenVggThr = self.netVggThr(tenVggTwo)
+			tenVggFou = self.netVggFou(tenVggThr)
+			tenVggFiv = self.netVggFiv(tenVggFou)
 
-		tenScoreOne = self.netScoreOne(tenVggOne)
-		tenScoreTwo = self.netScoreTwo(tenVggTwo)
-		tenScoreThr = self.netScoreThr(tenVggThr)
-		tenScoreFou = self.netScoreFou(tenVggFou)
-		tenScoreFiv = self.netScoreFiv(tenVggFiv)
+			tenScoreOne = self.netScoreOne(tenVggOne)
+			tenScoreTwo = self.netScoreTwo(tenVggTwo)
+			tenScoreThr = self.netScoreThr(tenVggThr)
+			tenScoreFou = self.netScoreFou(tenVggFou)
+			tenScoreFiv = self.netScoreFiv(tenVggFiv)
 
-		tenScoreOne = torch.nn.functional.interpolate(input=tenScoreOne, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
-		tenScoreTwo = torch.nn.functional.interpolate(input=tenScoreTwo, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
-		tenScoreThr = torch.nn.functional.interpolate(input=tenScoreThr, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
-		tenScoreFou = torch.nn.functional.interpolate(input=tenScoreFou, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
-		tenScoreFiv = torch.nn.functional.interpolate(input=tenScoreFiv, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
+			tenScoreOne = torch.nn.functional.interpolate(input=tenScoreOne, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
+			tenScoreTwo = torch.nn.functional.interpolate(input=tenScoreTwo, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
+			tenScoreThr = torch.nn.functional.interpolate(input=tenScoreThr, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
+			tenScoreFou = torch.nn.functional.interpolate(input=tenScoreFou, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
+			tenScoreFiv = torch.nn.functional.interpolate(input=tenScoreFiv, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
 
 		return self.netCombine(torch.cat([ tenScoreOne, tenScoreTwo, tenScoreThr, tenScoreFou, tenScoreFiv ], 1))
