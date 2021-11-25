@@ -57,6 +57,6 @@ def create_dataset(data_dir, base, data_len, device):
 def sketch_dataset(data_dir, device):
     return SketchDataset(data_dir, device)
 
-def sketch_dataloader(data_dir, device):
-    dataset = SketchDataset(data_dir, batch_size, device)
+def sketch_dataloader(data_dir, batch_size, device):
+    dataset = SketchDataset(data_dir, device)
     return DataLoader(dataset, batch_size=batch_size)

@@ -15,7 +15,7 @@ pretrained_opt = {
     'save_freq': 250,
     'vis_freq': 100,
 
-    'resume_iter': 70250,
+    'resume_iter': 71250,
 
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'loss': 'wgp',
@@ -37,20 +37,22 @@ pretrained_opt = {
 sketch_opt = {
     'name': 'sketch',
     'checkpoints_dir': './weights/',
-    'pretrained': './weights/70250_net_G.pth',
+    'pretrained': '76250_net_G.pth',
 
-    'hed_weight': './weights/network-bsds500.pytorch',
+    'hed_weight': './weights/hed-bsds500.pth',
     'data_dir': 'E:/HKUST/2021F/COMP4471/project/data/img/G2.h5',
+    'sketch_dir': 'exp\input_sketch',
     'visual_dir': './visual',
     'log_dir': './tensorboard/sketch',
     'data_len': 75000,
     'num_workers': 0,
 
-    'print_freq': 10,
-    'save_freq': 250,
-    'vis_freq': 100,
 
-    'resume_iter': 70250,
+    'print_freq': 1,
+    'save_freq': 1000000,
+    'vis_freq': 1,
+
+    'resume_iter': 0,
 
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'loss': 'wgp',
@@ -62,7 +64,8 @@ sketch_opt = {
     'ndf_sketch': 128,
     'nc_image': 3,
     'ndf_image': 128,
-    'batch_size': 80,
+    'image_batch': 50,
+    'sketch_batch': 1,
 
     'lr': 5e-5,
     'beta1': 0.0,
@@ -70,7 +73,8 @@ sketch_opt = {
     'ncritic': 2,
 
     'lambda_gp': 10,
-    'l_image': 0.7,
+    'l_image': 0,
+    'l_weight': 0,
     'r1': 0.1,
-    'd_reg_every': 0,1,
+    'd_reg_every': 0,
 }
