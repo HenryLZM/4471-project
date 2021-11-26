@@ -50,7 +50,7 @@ sketch_opt = {
 
     'print_freq': 1,
     'save_freq': 1000000,
-    'vis_freq': 1,
+    'vis_freq': 5,
 
     'resume_iter': 0,
 

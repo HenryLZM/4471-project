@@ -3,7 +3,7 @@ import os
 import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
-from training.networks.dcgan import Generator, Discriminator
+from training.networks.dcgan import Generator, Discriminator, DiscriminatorSig
 from torch.optim import Adam
 from training.networks.hed import HedNet
 from training.networks.loss import RegularizeD, WeightLoss
@@ -76,19 +76,22 @@ class SketchTrainer():
         self.netG = Generator(opt['nz'], opt['ngf']).to(self.device)
         if opt['resume_iter'] is not None:
             self.netG.load_state_dict(torch.load(opt['checkpoints_dir'] + '/' + opt['name'] + '/' + opt['pretrained']))
+        for p in self.netG.parameters():
+            p.requires_grad = False # Freeze all layers
 
         self.hed = HedNet(opt['hed_weight']).to(self.device)
         self.optim_G = Adam(self.netG.parameters(), lr = opt['lr'], betas=(opt['beta1'], opt['beta2']))
-        self.netD_sketch = Discriminator(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
+        self.netD_sketch = DiscriminatorSig(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
         self.optim_D_sketch = Adam(self.netD_sketch.parameters(), lr=opt['lr'], betas=(opt['beta1'], opt['beta2']))
-        
+        self.bce_loss = torch.nn.BCELoss()
+
         if opt['l_weight'] > 0:
             self.weight_loss = WeightLoss(list(self.netG.parameters()))
             
         self.image_regularization = opt['l_image'] > 0
         
         if self.image_regularization:
-            self.netD_image = Discriminator(opt['nc_image'], opt['ndf_image']).to(self.device)
+            self.netD_image = DiscriminatorSig(opt['nc_image'], opt['ndf_image']).to(self.device)
             self.optim_D_image = Adam(self.netD_image.parameters(), lr=opt['lr'], betas=(opt['beta1'], opt['beta2']))
 
         self.g_loss = 0
@@ -107,7 +110,9 @@ class SketchTrainer():
         # sketch discriminator loss
         pred_fake_sketch = self.netD_sketch(fake_sketch)
         pred_real_sketch = self.netD_sketch(real_sketch)
-        d_sketch_loss = pred_fake_sketch.mean() - pred_real_sketch.mean()
+        fake_sketch_loss = self.bce_loss(pred_fake_sketch, torch.zeros(size=pred_fake_sketch.shape, device=self.device))
+        real_sketch_loss = self.bce_loss(pred_real_sketch, torch.ones(size=pred_real_sketch.shape, device=self.device))
+        d_sketch_loss = fake_sketch_loss + real_sketch_loss
         self.optim_D_sketch.zero_grad()
         d_sketch_loss.backward()
         self.optim_D_sketch.step()
@@ -118,11 +123,13 @@ class SketchTrainer():
         if real_image is not None:
             pred_fake_image = self.netD_image(fake_image)
             pred_real_image = self.netD_image(real_image)
-            d_image_loss = pred_real_image.mean() - pred_fake_image.mean()
+            fake_image_loss = self.bce_loss(pred_fake_image, torch.zeros(size=pred_fake_sketch.shape, device=self.device))
+            real_image_loss = self.bce_loss(pred_real_image, torch.ones(size=pred_real_sketch.shape, device=self.device))
+            d_image_loss = fake_image_loss + real_image_loss
             self.optim_D_image.zero_grad()
             d_image_loss.backward()
             self.optim_D_image.step()
-            self.d_image_loss = d_image_loss.item().cpu()
+            self.d_image_loss = d_image_loss.item()
         
         # image regularization
         if self.opt['d_reg_every'] != 0 and iters % self.opt['d_reg_every'] == 0:
@@ -145,40 +152,40 @@ class SketchTrainer():
             self.optim_D_sketch.step()
             if self.image_regularization: self.optim_D_image.step()
 
-        # generator loss
-        if self.opt['loss'] == 'wgp':
-            self.set_requires_grad(True, False, False if self.image_regularization else None)
-            noise = torch.randn(size=(self.opt['image_batch'], self.opt['nz'], 1,1), device=self.device)
-            fake_image = self.netG(noise)
-            
-            # wassertesian distance
-            l_weight = torch.tensor(0, device=self.device)
-            if self.opt['l_weight'] > 0:
-                # weight loss
-                l_weight = self.opt['l_weight'] * self.weight_loss(list(self.netG.parameters()))
+        # Generator
+        self.set_requires_grad(True, False, False if self.image_regularization else None)
+        noise = torch.randn(size=(self.opt['image_batch'], self.opt['nz'], 1,1), device=self.device)
+        fake_image = self.netG(noise)
+        
+        # weight reg
+        l_weight = torch.tensor(0, device=self.device)
+        if self.opt['l_weight'] > 0:
+            # weight loss
+            l_weight = self.opt['l_weight'] * self.weight_loss(list(self.netG.parameters()))
 
-            l_image = torch.tensor(0, device=self.device)
-            if self.image_regularization:
-                pred_image = self.netD_image(fake_image)
-                loss_image = -l_image.mean()
+        l_image = torch.tensor(0, device=self.device)
+        if self.image_regularization:
+            pred_image = self.netD_image(fake_image)
+            l_image = self.bce_loss(pred_image, torch.ones(pred_image.shape, device=self.device))
 
-            fake_sketch = self.hed(fake_image)
-            pred_sketch = self.netD_sketch(fake_sketch)
-            l_sketch = - pred_sketch.mean()
-            
-            loss_g = l_weight + l_image + l_sketch
-            self.optim_G.zero_grad()
-            loss_g.backward()
-            self.optim_G.step()
-            self.g_loss = loss_g.item()
+        fake_sketch = self.hed(fake_image)
+        pred_sketch = self.netD_sketch(fake_sketch)
+        l_sketch = self.bce_loss(pred_sketch, torch.ones(pred_image.shape, device=self.device))
+        
+        loss_g = l_weight + l_image + l_sketch
+        self.optim_G.zero_grad()
+        loss_g.backward()
+        self.optim_G.step()
+        self.g_loss = loss_g.item()
 
+            # color loss?
         # self.writer.add_scalar('generator', , global_step=iters)
         # self.writer.add_scalar('discriminator', self.d_loss, global_step=iters)
 
     def set_requires_grad(self, G=None, D1=None, D2=None):
         if G is not None:
-            for p in self.netG.parameters():
-                p.requires_grad = G
+            params = list(self.netG.parameters())
+            params[0].requires_grad = G
 
         if D1 is not None:
             for p in self.netD_sketch.parameters():

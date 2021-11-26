@@ -61,6 +61,8 @@ class HedNet(torch.nn.Module):
 		)
 
 		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load(hed_weight_dir).items() })
+		for p in self.parameters():
+			p.requires_grad = False
 	# end
 
 	def forward(self, tenInput):

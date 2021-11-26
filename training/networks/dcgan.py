@@ -75,3 +75,35 @@ class Discriminator(nn.Module):
     def forward(self, x):
         return self.main(x).reshape(len(x),)
 
+class DiscriminatorSig(nn.Module):
+    def __init__(self, nc, ndf):
+        super(DiscriminatorSig, self).__init__()
+        self.main = nn.Sequential(
+
+            nn.Conv2d(nc, ndf, 4, 2, 1),
+            nn.BatchNorm2d(ndf),
+            nn.LeakyReLU(0.2,True),
+            
+
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2,True),
+
+            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1),
+            nn.BatchNorm2d(ndf * 4),
+            nn.LeakyReLU(0.2,True),
+
+            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1),
+            nn.BatchNorm2d(ndf * 8),
+            nn.LeakyReLU(0.2,True),
+
+            nn.Conv2d(ndf * 8, ndf*16, 4, 2, 1),
+            nn.BatchNorm2d(ndf * 16),
+            nn.LeakyReLU(0.2,True),
+
+            nn.Conv2d(ndf * 16, 1, 4, 1, 0),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        return self.main(x).reshape(len(x),)

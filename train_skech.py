@@ -38,7 +38,6 @@ def train_loop():
         trainer.load(resume_iter)
 
     for epoch in range(opt['max_epoch']):
-        print(f'epoch: {epoch}')
         for i, data_sketch in enumerate(sketch_loader):
             total_iters += 1
             data_image = None
