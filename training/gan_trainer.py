@@ -80,9 +80,12 @@ class SketchTrainer():
             p.requires_grad = False # Freeze all layers
 
         self.hed = HedNet(opt['hed_weight']).to(self.device)
-        self.optim_G = Adam(self.netG.parameters(), lr = opt['lr'], betas=(opt['beta1'], opt['beta2']))
-        self.netD_sketch = DiscriminatorSig(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
-        self.optim_D_sketch = Adam(self.netD_sketch.parameters(), lr=opt['lr'], betas=(opt['beta1'], opt['beta2']))
+        self.optim_G = Adam(self.netG.parameters(), lr = opt['g_lr'], betas=(opt['g_beta1'], opt['g_beta2']))
+        if opt['loss'] == 'bce':
+            self.netD_sketch = DiscriminatorSig(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
+        elif opt['loss'] == 'wgp':
+            self.netD_sketch = Discriminator(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
+        self.optim_D_sketch = Adam(self.netD_sketch.parameters(), lr=opt['d_s_lr'], betas=(opt['d_s_beta1'], opt['d_s_beta2']))
         self.bce_loss = torch.nn.BCELoss()
 
         if opt['l_weight'] > 0:
@@ -91,8 +94,11 @@ class SketchTrainer():
         self.image_regularization = opt['l_image'] > 0
         
         if self.image_regularization:
-            self.netD_image = DiscriminatorSig(opt['nc_image'], opt['ndf_image']).to(self.device)
-            self.optim_D_image = Adam(self.netD_image.parameters(), lr=opt['lr'], betas=(opt['beta1'], opt['beta2']))
+            if opt['loss'] == 'bce':
+                self.netD_sketch = DiscriminatorSig(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
+            elif opt['loss'] == 'wgp':
+                self.netD_sketch = Discriminator(opt['nc_sketch'], opt['ndf_sketch']).to(self.device)
+            self.optim_D_image = Adam(self.netD_image.parameters(), lr=opt['d_i_lr'], betas=(opt['d_i_beta1'], opt['d_i_beta2']))
 
         self.g_loss = 0
         self.d_sketch_loss = 0
@@ -106,13 +112,20 @@ class SketchTrainer():
             fake_image = self.netG(noise)   
             fake_sketch = self.hed((fake_image+1)/2*255)
 
+        # discriminators
         self.set_requires_grad(False, True, real_image is not None)
+
         # sketch discriminator loss
         pred_fake_sketch = self.netD_sketch(fake_sketch)
         pred_real_sketch = self.netD_sketch(real_sketch)
-        fake_sketch_loss = self.bce_loss(pred_fake_sketch, torch.zeros(size=pred_fake_sketch.shape, device=self.device))
-        real_sketch_loss = self.bce_loss(pred_real_sketch, torch.ones(size=pred_real_sketch.shape, device=self.device))
-        d_sketch_loss = fake_sketch_loss + real_sketch_loss
+        if self.opt['loss'] = 'bce':
+            fake_sketch_loss = self.bce_loss(pred_fake_sketch, torch.zeros(size=pred_fake_sketch.shape, device=self.device))
+            real_sketch_loss = self.bce_loss(pred_real_sketch, torch.ones(size=pred_real_sketch.shape, device=self.device))
+            d_sketch_loss = fake_sketch_loss + real_sketch_loss
+        elif self.opt['loss'] = 'wgp':
+            gp = self.gradient_penalty(real_sketch, fake_sketch)
+            d_sketch_loss = pred_fake_sketch.mean() - pred_real_sketch.mean() + gp
+        
         self.optim_D_sketch.zero_grad()
         d_sketch_loss.backward()
         self.optim_D_sketch.step()
@@ -123,9 +136,14 @@ class SketchTrainer():
         if real_image is not None:
             pred_fake_image = self.netD_image(fake_image)
             pred_real_image = self.netD_image(real_image)
-            fake_image_loss = self.bce_loss(pred_fake_image, torch.zeros(size=pred_fake_sketch.shape, device=self.device))
-            real_image_loss = self.bce_loss(pred_real_image, torch.ones(size=pred_real_sketch.shape, device=self.device))
-            d_image_loss = fake_image_loss + real_image_loss
+            if self.opt['loss'] == 'bce':
+                fake_image_loss = self.bce_loss(pred_fake_image, torch.zeros(size=pred_fake_image.shape, device=self.device))
+                real_image_loss = self.bce_loss(pred_real_image, torch.ones(size=pred_real_image.shape, device=self.device))
+                d_image_loss = fake_image_loss + real_image_loss
+            elif self.opt['loss'] == 'wgp':
+                gp = self.gradient_penalty(real_image, fake_image)
+                d_image_loss = pred_fake_image.mean() - pred_real_image().mean() + gp
+
             self.optim_D_image.zero_grad()
             d_image_loss.backward()
             self.optim_D_image.step()
@@ -156,7 +174,7 @@ class SketchTrainer():
         self.set_requires_grad(True, False, False if self.image_regularization else None)
         noise = torch.randn(size=(self.opt['image_batch'], self.opt['nz'], 1,1), device=self.device)
         fake_image = self.netG(noise)
-        
+
         # weight reg
         l_weight = torch.tensor(0, device=self.device)
         if self.opt['l_weight'] > 0:
@@ -167,12 +185,16 @@ class SketchTrainer():
         if self.image_regularization:
             pred_image = self.netD_image(fake_image)
             l_image = self.bce_loss(pred_image, torch.ones(pred_image.shape, device=self.device))
-
+        
         fake_sketch = self.hed(fake_image)
         pred_sketch = self.netD_sketch(fake_sketch)
-        l_sketch = self.bce_loss(pred_sketch, torch.ones(pred_image.shape, device=self.device))
+        if self.opt['loss'] == 'bce':
+            loss_g = self.bce_loss(pred_sketch, torch.ones(pred_sketch.shape, device=self.device))
+        elsif self.opt['loss'] == 'wgp':
+            loss_g = -pred_sketch.mean()
         
-        loss_g = l_weight + l_image + l_sketch
+        if l_weight != 0: loss_g += 
+        if l_image != 0: loss_g += l_image
         self.optim_G.zero_grad()
         loss_g.backward()
         self.optim_G.step()
@@ -246,5 +268,19 @@ class SketchTrainer():
             batch_size = self.opt['']
         noise = torch.randn(batch_size, self.opt['nz'],1,1, device=self.device)
         return self.netG(noise)
+
+    def gradient_penalty(self, real, fake):
+        alpha = torch.rand(real.shape[0], 1,1,1, device=self.device)
+        interpolates = (alpha * real + (1-alpha) * fake).requires_grad_(True)
+        # interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
+        d_interpolates = self.netD(interpolates)
+        gradients = torch.autograd.grad(outputs=d_interpolates, inputs=interpolates,
+                            grad_outputs=torch.ones(d_interpolates.size()).to(self.device),
+                            create_graph=True, retain_graph=True)[0].reshape(real.shape[0], -1)
+
+        gradient_penalty = ((gradients.norm(p=2, dim=1)-1)**2).mean() * self.opt['lambda_gp']
+
+        return gradient_penalty
+
 
         

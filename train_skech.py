@@ -14,7 +14,7 @@ def train_loop():
             data_dir = opt['data_dir'],
             base = 0,
             data_len = opt['data_len'],
-            batch_size = opt['batch_size'],
+            batch_size = opt['image_batch'],
             num_workers = opt['num_workers'],
             device =  opt['device']
         )
