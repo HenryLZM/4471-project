@@ -71,7 +71,7 @@ class GANModel(torch.nn.Module):
         elif mode == 'wgp':
             d_fake = pred_fake.mean()
             d_real = -pred_real.mean()   
-            gp = self.gradient_penalty(real, fake) * self.opt['lambda_gp']
+            gp = self.gradient_penalty(real, fake)
             return d_fake + d_real + gp
 
         

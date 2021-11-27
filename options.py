@@ -35,20 +35,20 @@ pretrained_opt = {
 }
 
 sketch_opt = {
-    'name': 'sketch',
-    'checkpoints_dir': './weights/',
+    'name': 'wgp',
+    'checkpoints_dir': './weights/sketch',
     'pretrained': '76250_net_G.pth',
 
     'hed_weight': './weights/hed-bsds500.pth',
     'data_dir': 'E:/HKUST/2021F/COMP4471/project/data/img/G2.h5',
     'sketch_dir': './input/sketch',
-    'visual_dir': './visual',
+    'visual_dir': './visual/sketch',
     'log_dir': './tensorboard/sketch',
     'data_len': 75000,
     'num_workers': 0,
 
 
-    'print_freq': 20,
+    'print_freq': 10,
     'save_freq': 1000,
     'vis_freq': 100,
 
@@ -61,11 +61,11 @@ sketch_opt = {
     'nz': 128,
     'ngf': 256,
     'nc_sketch': 1,
-    'ndf_sketch': 8,
+    'ndf_sketch': 16,
     'nc_image': 3,
     'ndf_image': 128,
-    'image_batch': 32,
-    'sketch_batch': 32,
+    'image_batch': 4,
+    'sketch_batch': 4,
 
     'g_lr': 5e-4,
     'g_beta1': 0.5,
