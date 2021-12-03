@@ -91,7 +91,7 @@ class HedNet(torch.nn.Module):
 		tenScoreFiv = torch.nn.functional.interpolate(input=tenScoreFiv, size=(tenInput.shape[2], tenInput.shape[3]), mode='bilinear', align_corners=False)
 
 		ori =  self.netCombine(torch.cat([ tenScoreOne, tenScoreTwo, tenScoreThr, tenScoreFou, tenScoreFiv ], 1))
-		res = ori * (ori > 0.5)
+		res = ori * (ori > 0.4)
 		return res
 	# end
 # end

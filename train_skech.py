@@ -43,6 +43,10 @@ def train_loop():
             data_image = None
             if image_loader is not None:
                 data_image = next(iter(image_loader))
+            # s = data_sketch[0]
+            # i = data_image[0]
+            # ToPILImage()(s/2+0.5).show()
+            # ToPILImage()(i/2+0.5).show()
             trainer.train_one_step(data_sketch, total_iters, data_image)
 
             if total_iters % opt['print_freq'] == 0:

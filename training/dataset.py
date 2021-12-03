@@ -24,6 +24,9 @@ class FashionDataset(Dataset):
         base = self.base
         pic = self.images[base+idx] + self.mean
         pic = pic + (self.masks[base+idx] == 0)
+        # pic[1] = pic[1] + (self.masks[base+idx] == 0)
+        # pic[0] = pic[0] * (self.masks[base+idx] != 0)
+        # pic[2] = pic[2] * (self.masks[base+idx] != 0)
         pic = pic.clip(0,1)
         pic = torch.tensor(pic, device=self.device)
         pic = functional.rotate(pic, -90)
